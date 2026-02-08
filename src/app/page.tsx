@@ -10,45 +10,56 @@ import { cn } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 async function getHomeData() {
-    const [
-        featuredManhwa,
-        trendingManhwa,
-        latestUpdates,
-        popularManhwa,
-        genres,
-    ] = await Promise.all([
-        prisma.manhwa.findMany({
-            where: { rating: { gte: 4.0 } },
-            include: { genres: true, _count: { select: { chapters: true } } },
-            orderBy: { viewCount: 'desc' },
-            take: 4,
-        }),
-        prisma.manhwa.findMany({
-            include: { genres: true, _count: { select: { chapters: true } } },
-            orderBy: { viewCount: 'desc' },
-            take: 10,
-        }),
-        prisma.manhwa.findMany({
-            include: {
-                genres: true,
-                chapters: { orderBy: { createdAt: 'desc' }, take: 3 },
-                _count: { select: { chapters: true } },
-            },
-            orderBy: { updatedAt: 'desc' },
-            take: 15,
-        }),
-        prisma.manhwa.findMany({
-            include: { genres: true, _count: { select: { chapters: true } } },
-            orderBy: { bookmarkCount: 'desc' },
-            take: 10,
-        }),
-        prisma.genre.findMany({
-            include: { _count: { select: { manhwas: true } } },
-            orderBy: { name: 'asc' },
-        }),
-    ]);
+    try {
+        const [
+            featuredManhwa,
+            trendingManhwa,
+            latestUpdates,
+            popularManhwa,
+            genres,
+        ] = await Promise.all([
+            prisma.manhwa.findMany({
+                where: { rating: { gte: 4.0 } },
+                include: { genres: true, _count: { select: { chapters: true } } },
+                orderBy: { viewCount: 'desc' },
+                take: 4,
+            }),
+            prisma.manhwa.findMany({
+                include: { genres: true, _count: { select: { chapters: true } } },
+                orderBy: { viewCount: 'desc' },
+                take: 10,
+            }),
+            prisma.manhwa.findMany({
+                include: {
+                    genres: true,
+                    chapters: { orderBy: { createdAt: 'desc' }, take: 3 },
+                    _count: { select: { chapters: true } },
+                },
+                orderBy: { updatedAt: 'desc' },
+                take: 15,
+            }),
+            prisma.manhwa.findMany({
+                include: { genres: true, _count: { select: { chapters: true } } },
+                orderBy: { bookmarkCount: 'desc' },
+                take: 10,
+            }),
+            prisma.genre.findMany({
+                include: { _count: { select: { manhwas: true } } },
+                orderBy: { name: 'asc' },
+            }),
+        ]);
 
-    return { featuredManhwa, trendingManhwa, latestUpdates, popularManhwa, genres };
+        return { featuredManhwa, trendingManhwa, latestUpdates, popularManhwa, genres };
+    } catch (error) {
+        console.error('Failed to fetch home data:', error);
+        return {
+            featuredManhwa: [],
+            trendingManhwa: [],
+            latestUpdates: [],
+            popularManhwa: [],
+            genres: []
+        };
+    }
 }
 
 export default async function HomePage() {

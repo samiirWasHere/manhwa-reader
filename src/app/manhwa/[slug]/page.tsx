@@ -24,47 +24,57 @@ interface ManhwaPageProps {
 }
 
 async function getManhwa(slug: string) {
-    const manhwa = await prisma.manhwa.findUnique({
-        where: { slug },
-        include: {
-            genres: true,
-            chapters: {
-                orderBy: { chapterNumber: 'desc' },
-            },
-            _count: {
-                select: {
-                    chapters: true,
-                    bookmarks: true,
-                    comments: true,
+    try {
+        const manhwa = await prisma.manhwa.findUnique({
+            where: { slug },
+            include: {
+                genres: true,
+                chapters: {
+                    orderBy: { chapterNumber: 'desc' },
+                },
+                _count: {
+                    select: {
+                        chapters: true,
+                        bookmarks: true,
+                        comments: true,
+                    },
                 },
             },
-        },
-    });
+        });
 
-    if (!manhwa) return null;
+        if (!manhwa) return null;
 
-    // Increment view count
-    await prisma.manhwa.update({
-        where: { id: manhwa.id },
-        data: { viewCount: { increment: 1 } },
-    });
+        // Increment view count
+        await prisma.manhwa.update({
+            where: { id: manhwa.id },
+            data: { viewCount: { increment: 1 } },
+        }).catch(() => { }); // Don't fail if view count update fails
 
-    return manhwa;
+        return manhwa;
+    } catch (error) {
+        console.error('Failed to fetch manhwa:', error);
+        return null;
+    }
 }
 
 async function getRelatedManhwa(genres: { id: string }[], excludeId: string) {
-    return prisma.manhwa.findMany({
-        where: {
-            id: { not: excludeId },
-            genres: { some: { id: { in: genres.map(g => g.id) } } },
-        },
-        include: {
-            genres: true,
-            _count: { select: { chapters: true } },
-        },
-        take: 6,
-        orderBy: { viewCount: 'desc' },
-    });
+    try {
+        return prisma.manhwa.findMany({
+            where: {
+                id: { not: excludeId },
+                genres: { some: { id: { in: genres.map(g => g.id) } } },
+            },
+            include: {
+                genres: true,
+                _count: { select: { chapters: true } },
+            },
+            take: 6,
+            orderBy: { viewCount: 'desc' },
+        });
+    } catch (error) {
+        console.error('Failed to fetch related manhwa:', error);
+        return [];
+    }
 }
 
 export async function generateMetadata({ params }: ManhwaPageProps) {

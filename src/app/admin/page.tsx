@@ -14,37 +14,49 @@ import { formatNumber } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 async function getStats() {
-    const [
-        totalManhwa,
-        totalChapters,
-        totalUsers,
-        totalViews,
-        recentManhwa,
-        recentScraperJobs,
-    ] = await Promise.all([
-        prisma.manhwa.count(),
-        prisma.chapter.count(),
-        prisma.user.count(),
-        prisma.manhwa.aggregate({ _sum: { viewCount: true } }),
-        prisma.manhwa.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            select: { id: true, title: true, slug: true, coverImage: true, createdAt: true },
-        }),
-        prisma.scraperJob.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-        }),
-    ]);
+    try {
+        const [
+            totalManhwa,
+            totalChapters,
+            totalUsers,
+            totalViews,
+            recentManhwa,
+            recentScraperJobs,
+        ] = await Promise.all([
+            prisma.manhwa.count(),
+            prisma.chapter.count(),
+            prisma.user.count(),
+            prisma.manhwa.aggregate({ _sum: { viewCount: true } }),
+            prisma.manhwa.findMany({
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                select: { id: true, title: true, slug: true, coverImage: true, createdAt: true },
+            }),
+            prisma.scraperJob.findMany({
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+            }),
+        ]);
 
-    return {
-        totalManhwa,
-        totalChapters,
-        totalUsers,
-        totalViews: totalViews._sum.viewCount || 0,
-        recentManhwa,
-        recentScraperJobs,
-    };
+        return {
+            totalManhwa,
+            totalChapters,
+            totalUsers,
+            totalViews: totalViews._sum.viewCount || 0,
+            recentManhwa,
+            recentScraperJobs,
+        };
+    } catch (error) {
+        console.error('Failed to fetch admin stats:', error);
+        return {
+            totalManhwa: 0,
+            totalChapters: 0,
+            totalUsers: 0,
+            totalViews: 0,
+            recentManhwa: [],
+            recentScraperJobs: [],
+        };
+    }
 }
 
 export default async function AdminDashboard() {
