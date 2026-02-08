@@ -1,0 +1,289 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  username       String    @unique
+  password       String
+  name           String?
+  image          String?
+  role           Role      @default(USER)
+  emailVerified  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bookmarks      Bookmark[]
+  readingHistory ReadingHistory[]
+  comments       Comment[]
+  ratings        Rating[]
+  accounts       Account[]
+  sessions       Session[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// ============================================
+// MANHWA & CONTENT
+// ============================================
+
+model Manhwa {
+  id            String       @id @default(cuid())
+  title         String
+  slug          String       @unique
+  altTitles     String?      // JSON array of alternative titles
+  description   String
+  coverImage    String
+  bannerImage   String?
+  author        String?
+  artist        String?
+  status        ManhwaStatus @default(ONGOING)
+  type          ManhwaType   @default(MANHWA)
+  rating        Float        @default(0)
+  ratingCount   Int          @default(0)
+  viewCount     Int          @default(0)
+  bookmarkCount Int          @default(0)
+  releaseYear   Int?
+  isHot         Boolean      @default(false)
+  isFeatured    Boolean      @default(false)
+  sourceUrl     String?
+  sourceName    String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  chapters       Chapter[]
+  genres         Genre[]
+  bookmarks      Bookmark[]
+  readingHistory ReadingHistory[]
+  comments       Comment[]
+  ratings        Rating[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([type])
+  @@index([isHot])
+  @@index([isFeatured])
+  @@index([viewCount])
+  @@index([updatedAt])
+}
+
+model Chapter {
+  id           String   @id @default(cuid())
+  manhwaId     String
+  chapterNumber Float
+  title        String?
+  slug         String
+  pages        String   // JSON array of image URLs
+  pageCount    Int      @default(0)
+  viewCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  manhwa         Manhwa           @relation(fields: [manhwaId], references: [id], onDelete: Cascade)
+  readingHistory ReadingHistory[]
+  comments       Comment[]
+
+  @@unique([manhwaId, chapterNumber])
+  @@index([manhwaId])
+  @@index([chapterNumber])
+  @@index([createdAt])
+}
+
+model Genre {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  slug     String   @unique
+  manhwas  Manhwa[]
+
+  @@index([slug])
+}
+
+enum ManhwaStatus {
+  ONGOING
+  COMPLETED
+  HIATUS
+  DROPPED
+}
+
+enum ManhwaType {
+  MANHWA
+  MANGA
+  MANHUA
+  WEBTOON
+}
+
+// ============================================
+// USER INTERACTIONS
+// ============================================
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  manhwaId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  manhwa Manhwa @relation(fields: [manhwaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, manhwaId])
+  @@index([userId])
+  @@index([manhwaId])
+}
+
+model ReadingHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  manhwaId   String
+  chapterId  String
+  pageNumber Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  manhwa  Manhwa  @relation(fields: [manhwaId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, manhwaId])
+  @@index([userId])
+  @@index([manhwaId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  manhwaId  String
+  chapterId String?
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  manhwa  Manhwa    @relation(fields: [manhwaId], references: [id], onDelete: Cascade)
+  chapter Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([manhwaId])
+  @@index([chapterId])
+  @@index([userId])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  score     Int      // 1-10 scale
+  userId    String
+  manhwaId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  manhwa Manhwa @relation(fields: [manhwaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, manhwaId])
+  @@index([manhwaId])
+}
+
+// ============================================
+// SCRAPER SYSTEM
+// ============================================
+
+model ScraperJob {
+  id          String          @id @default(cuid())
+  sourceUrl   String
+  sourceName  String
+  status      ScraperJobStatus @default(PENDING)
+  jobType     ScraperJobType  @default(FULL)
+  manhwaId    String?
+  error       String?
+  logs        String?         // JSON array of log entries
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status])
+  @@index([sourceName])
+  @@index([createdAt])
+}
+
+enum ScraperJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ScraperJobType {
+  FULL          // Scrape manhwa + all chapters
+  UPDATE        // Check for new chapters only
+  CHAPTERS_ONLY // Scrape specific chapters
+}
+
+// ============================================
+// SITE SETTINGS
+// ============================================
+
+model SiteSettings {
+  id              String   @id @default("main")
+  siteName        String   @default("ManhwaReader")
+  siteDescription String   @default("Read your favorite manhwa online")
+  siteLogo        String?
+  maintenanceMode Boolean  @default(false)
+  adsEnabled      Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+}
